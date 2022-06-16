@@ -1,11 +1,15 @@
 package sarama
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 var (
 	emptyMetadataResponseV0 = []byte{
 		0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	brokersNoTopicsMetadataResponseV0 = []byte{
 		0x00, 0x00, 0x00, 0x02,
@@ -18,7 +22,8 @@ var (
 		0x00, 0x0a, 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
 		0x00, 0x00, 0x01, 0x11,
 
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	topicsNoBrokersMetadataResponseV0 = []byte{
 		0x00, 0x00, 0x00, 0x00,
@@ -35,7 +40,8 @@ var (
 
 		0x00, 0x00,
 		0x00, 0x03, 'b', 'a', 'r',
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	brokersNoTopicsMetadataResponseV1 = []byte{
 		0x00, 0x00, 0x00, 0x02,
@@ -52,7 +58,8 @@ var (
 
 		0x00, 0x00, 0x00, 0x01,
 
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	topicsNoBrokersMetadataResponseV1 = []byte{
 		0x00, 0x00, 0x00, 0x00,
@@ -74,14 +81,16 @@ var (
 		0x00, 0x00,
 		0x00, 0x03, 'b', 'a', 'r',
 		0x01,
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	noBrokersNoTopicsWithThrottleTimeAndClusterIDV3 = []byte{
 		0x00, 0x00, 0x00, 0x10,
 		0x00, 0x00, 0x00, 0x00,
 		0x00, 0x09, 'c', 'l', 'u', 's', 't', 'e', 'r', 'I', 'd',
 		0x00, 0x00, 0x00, 0x01,
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	noBrokersOneTopicWithOfflineReplicasV5 = []byte{
 		0x00, 0x00, 0x00, 0x05,
@@ -152,7 +161,7 @@ func TestMetadataResponseWithTopicsV0(t *testing.T) {
 		t.Fatal("Decoding produced", len(response.Topics), "topics where there were two!")
 	}
 
-	if response.Topics[0].Err != ErrNoError {
+	if !errors.Is(response.Topics[0].Err, ErrNoError) {
 		t.Error("Decoding produced invalid topic 0 error.")
 	}
 
@@ -164,7 +173,7 @@ func TestMetadataResponseWithTopicsV0(t *testing.T) {
 		t.Fatal("Decoding produced invalid partition count for topic 0.")
 	}
 
-	if response.Topics[0].Partitions[0].Err != ErrInvalidMessageSize {
+	if !errors.Is(response.Topics[0].Partitions[0].Err, ErrInvalidMessageSize) {
 		t.Error("Decoding produced invalid topic 0 partition 0 error.")
 	}
 
@@ -189,7 +198,7 @@ func TestMetadataResponseWithTopicsV0(t *testing.T) {
 		t.Error("Decoding produced invalid topic 0 partition 0 isr length.")
 	}
 
-	if response.Topics[1].Err != ErrNoError {
+	if !errors.Is(response.Topics[1].Err, ErrNoError) {
 		t.Error("Decoding produced invalid topic 1 error.")
 	}
 

@@ -1,10 +1,14 @@
 package sarama
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 var (
 	emptyOffsetResponse = []byte{
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	normalOffsetResponse = []byte{
 		0x00, 0x00, 0x00, 0x02,
@@ -18,7 +22,8 @@ var (
 		0x00, 0x00,
 		0x00, 0x00, 0x00, 0x02,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06}
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
+	}
 
 	normalOffsetResponseV1 = []byte{
 		0x00, 0x00, 0x00, 0x02,
@@ -31,7 +36,8 @@ var (
 		0x00, 0x00, 0x00, 0x02,
 		0x00, 0x00,
 		0x00, 0x00, 0x01, 0x58, 0x1A, 0xE6, 0x48, 0x86,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06}
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
+	}
 )
 
 func TestEmptyOffsetResponse(t *testing.T) {
@@ -67,7 +73,7 @@ func TestNormalOffsetResponse(t *testing.T) {
 		t.Fatal("Decoding produced", len(response.Blocks["z"]), "partitions for topic 'z' where there was one.")
 	}
 
-	if response.Blocks["z"][2].Err != ErrNoError {
+	if !errors.Is(response.Blocks["z"][2].Err, ErrNoError) {
 		t.Fatal("Decoding produced invalid error for topic z partition 2.")
 	}
 
@@ -97,7 +103,7 @@ func TestNormalOffsetResponseV1(t *testing.T) {
 		t.Fatal("Decoding produced", len(response.Blocks["z"]), "partitions for topic 'z' where there was one.")
 	}
 
-	if response.Blocks["z"][2].Err != ErrNoError {
+	if !errors.Is(response.Blocks["z"][2].Err, ErrNoError) {
 		t.Fatal("Decoding produced invalid error for topic z partition 2.")
 	}
 

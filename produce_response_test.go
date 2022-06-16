@@ -1,6 +1,7 @@
 package sarama
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -8,7 +9,8 @@ import (
 
 var (
 	produceResponseNoBlocksV0 = []byte{
-		0x00, 0x00, 0x00, 0x00}
+		0x00, 0x00, 0x00, 0x00,
+	}
 
 	produceResponseManyBlocksVersions = map[int][]byte{
 		0: {
@@ -85,14 +87,14 @@ func TestProduceResponseDecode(t *testing.T) {
 		if block == nil {
 			t.Error("Decoding did not produce a block for foo/1")
 		} else {
-			if block.Err != ErrInvalidMessage {
+			if !errors.Is(block.Err, ErrInvalidMessage) {
 				t.Error("Decoding failed for foo/1/Err, got:", int16(block.Err))
 			}
 			if block.Offset != 255 {
 				t.Error("Decoding failed for foo/1/Offset, got:", block.Offset)
 			}
 			if v >= 2 {
-				if block.Timestamp != time.Unix(1, 0) {
+				if !block.Timestamp.Equal(time.Unix(1, 0)) {
 					t.Error("Decoding failed for foo/1/Timestamp, got:", block.Timestamp)
 				}
 			}
@@ -145,7 +147,8 @@ func TestProduceResponseEncodeInvalidTimestamp(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error, got nil")
 	}
-	if _, ok := err.(PacketEncodingError); !ok {
+	target := PacketEncodingError{}
+	if !errors.As(err, &target) {
 		t.Error("Expecting PacketEncodingError, got:", err)
 	}
 }

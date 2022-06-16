@@ -1,19 +1,18 @@
 package main
 
 import (
-	"github.com/Shopify/sarama"
-
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Shopify/sarama"
 )
 
 var (
@@ -61,7 +60,7 @@ func createTlsConfiguration() (t *tls.Config) {
 			log.Fatal(err)
 		}
 
-		caCert, err := ioutil.ReadFile(*caFile)
+		caCert, err := os.ReadFile(*caFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -126,7 +125,7 @@ func (s *Server) collectQueryStringData() http.Handler {
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Failed to store your data:, %s", err)
+			fmt.Fprintf(w, "Failed to store your data: %s", err)
 		} else {
 			// The tuple (topic, partition, offset) can be used as a unique identifier
 			// for a message in a Kafka cluster.
@@ -163,7 +162,6 @@ func (ale *accessLogEntry) Encode() ([]byte, error) {
 }
 
 func (s *Server) withAccessLog(next http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 
@@ -189,7 +187,6 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 }
 
 func newDataCollector(brokerList []string) sarama.SyncProducer {
-
 	// For the data collector, we are looking for strong consistency semantics.
 	// Because we don't change the flush settings, sarama will try to produce messages
 	// as fast as possible to keep latency low.
@@ -217,7 +214,6 @@ func newDataCollector(brokerList []string) sarama.SyncProducer {
 }
 
 func newAccessLogProducer(brokerList []string) sarama.AsyncProducer {
-
 	// For the access log, we are looking for AP semantics, with high throughput.
 	// By creating batches of compressed messages, we reduce network I/O at a cost of more latency.
 	config := sarama.NewConfig()

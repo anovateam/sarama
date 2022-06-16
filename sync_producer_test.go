@@ -1,6 +1,7 @@
 package sarama
 
 import (
+	"errors"
 	"log"
 	"sync"
 	"testing"
@@ -171,7 +172,7 @@ func TestSyncProducerToNonExistingTopic(t *testing.T) {
 	broker.Returns(metadataResponse)
 
 	_, _, err = producer.SendMessage(&ProducerMessage{Topic: "unknown"})
-	if err != ErrUnknownTopicOrPartition {
+	if !errors.Is(err, ErrUnknownTopicOrPartition) {
 		t.Error("Uxpected ErrUnknownTopicOrPartition, found:", err)
 	}
 
@@ -203,7 +204,7 @@ func TestSyncProducerRecoveryWithRetriesDisabled(t *testing.T) {
 	prodNotLeader.AddTopicPartition("my_topic", 0, ErrNotLeaderForPartition)
 	leader1.Returns(prodNotLeader)
 	_, _, err = producer.SendMessage(&ProducerMessage{Topic: "my_topic", Value: StringEncoder(TestMessage)})
-	if err != ErrNotLeaderForPartition {
+	if !errors.Is(err, ErrNotLeaderForPartition) {
 		t.Fatal(err)
 	}
 

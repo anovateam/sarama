@@ -45,11 +45,10 @@ func TestMockAsyncProducerImplementsAsyncProducerInterface(t *testing.T) {
 func TestProducerReturnsExpectationsToChannels(t *testing.T) {
 	config := NewTestConfig()
 	config.Producer.Return.Successes = true
-	mp := NewAsyncProducer(t, config)
-
-	mp.ExpectInputAndSucceed()
-	mp.ExpectInputAndSucceed()
-	mp.ExpectInputAndFail(sarama.ErrOutOfBrokers)
+	mp := NewAsyncProducer(t, config).
+		ExpectInputAndSucceed().
+		ExpectInputAndSucceed().
+		ExpectInputAndFail(sarama.ErrOutOfBrokers)
 
 	mp.Input() <- &sarama.ProducerMessage{Topic: "test 1"}
 	mp.Input() <- &sarama.ProducerMessage{Topic: "test 2"}
@@ -67,7 +66,7 @@ func TestProducerReturnsExpectationsToChannels(t *testing.T) {
 		t.Error("Expected message 2 to be returned second")
 	}
 
-	if err1.Msg.Topic != "test 3" || err1.Err != sarama.ErrOutOfBrokers {
+	if err1.Msg.Topic != "test 3" || !errors.Is(err1, sarama.ErrOutOfBrokers) {
 		t.Error("Expected message 3 to be returned as error")
 	}
 
@@ -95,9 +94,9 @@ func TestProducerWithTooFewExpectations(t *testing.T) {
 
 func TestProducerWithTooManyExpectations(t *testing.T) {
 	trm := newTestReporterMock()
-	mp := NewAsyncProducer(trm, nil)
-	mp.ExpectInputAndSucceed()
-	mp.ExpectInputAndFail(sarama.ErrOutOfBrokers)
+	mp := NewAsyncProducer(trm, nil).
+		ExpectInputAndSucceed().
+		ExpectInputAndFail(sarama.ErrOutOfBrokers)
 
 	mp.Input() <- &sarama.ProducerMessage{Topic: "test"}
 	if err := mp.Close(); err != nil {
@@ -111,9 +110,9 @@ func TestProducerWithTooManyExpectations(t *testing.T) {
 
 func TestProducerWithCheckerFunction(t *testing.T) {
 	trm := newTestReporterMock()
-	mp := NewAsyncProducer(trm, nil)
-	mp.ExpectInputWithCheckerFunctionAndSucceed(generateRegexpChecker("^tes"))
-	mp.ExpectInputWithCheckerFunctionAndSucceed(generateRegexpChecker("^tes$"))
+	mp := NewAsyncProducer(trm, nil).
+		ExpectInputWithCheckerFunctionAndSucceed(generateRegexpChecker("^tes")).
+		ExpectInputWithCheckerFunctionAndSucceed(generateRegexpChecker("^tes$"))
 
 	mp.Input() <- &sarama.ProducerMessage{Topic: "test", Value: sarama.StringEncoder("test")}
 	mp.Input() <- &sarama.ProducerMessage{Topic: "test", Value: sarama.StringEncoder("test")}
@@ -130,3 +129,45 @@ func TestProducerWithCheckerFunction(t *testing.T) {
 		t.Error("Expected to report a value check error, found: ", err1.Err)
 	}
 }
+
+func TestProducerWithBrokenPartitioner(t *testing.T) {
+	trm := newTestReporterMock()
+	config := sarama.NewConfig()
+	config.Producer.Partitioner = func(string) sarama.Partitioner {
+		return brokePartitioner{}
+	}
+	mp := NewAsyncProducer(trm, config)
+	mp.ExpectInputWithMessageCheckerFunctionAndSucceed(func(msg *sarama.ProducerMessage) error {
+		if msg.Partition != 15 {
+			t.Error("Expected partition 15, found: ", msg.Partition)
+		}
+		if msg.Topic != "test" {
+			t.Errorf(`Expected topic "test", found: %q`, msg.Topic)
+		}
+		return nil
+	})
+	mp.ExpectInputAndSucceed() // should actually fail in partitioning
+
+	mp.Input() <- &sarama.ProducerMessage{Topic: "test"}
+	mp.Input() <- &sarama.ProducerMessage{Topic: "not-test"}
+	if err := mp.Close(); err != nil {
+		t.Error(err)
+	}
+
+	if len(trm.errors) != 1 || !strings.Contains(trm.errors[0], "partitioning unavailable") {
+		t.Error("Expected to report partitioning unavailable, found", trm.errors)
+	}
+}
+
+// brokeProducer refuses to partition anything not on the “test” topic, and sends everything on
+// that topic to partition 15.
+type brokePartitioner struct{}
+
+func (brokePartitioner) Partition(msg *sarama.ProducerMessage, n int32) (int32, error) {
+	if msg.Topic == "test" {
+		return 15, nil
+	}
+	return 0, errors.New("partitioning unavailable")
+}
+
+func (brokePartitioner) RequiresConsistency() bool { return false }
